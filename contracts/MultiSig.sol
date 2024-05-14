@@ -4,7 +4,7 @@ import "./Wallet.sol";
 import "./Fiat.sol";
 
 contract MultiSig is NativeWallet {
-    event Submit(string indexed txId);
+    event Submit(string txId, Operation opr);
     event Approve(address indexed owner, string indexed txId);
     event Revoke(address indexed owner, string indexed txId);
     event Execute(string indexed txId);
@@ -104,7 +104,7 @@ contract MultiSig is NativeWallet {
             executed: false
         });
 
-        emit Submit(txId);
+        emit Submit(txId, _op);
     }
 
     function mint(
