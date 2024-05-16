@@ -5,15 +5,16 @@ import "./Fiat.sol";
 
 contract MultiSig is NativeWallet {
     event Submit(string txId, Operation opr);
-    event Approve(address owner, string txId);
-    event Revoke(address owner, string txId);
-    event Execute(string txId);
+    event Approve(address owner, string txId, Operation opr);
+    event Revoke(address owner, string txId, Operation opr);
+    event Execute(string txId, Operation opr);
 
     enum Operation {
         mint,
+        burn,
+        transferOwnership,
         addContract,
         removeContract,
-        transferOwnership,
         addMember,
         removeMember
     }
@@ -116,6 +117,14 @@ contract MultiSig is NativeWallet {
         submit(txId, Operation.mint, to, amount, tokenId);
     }
 
+    function burn(
+        string calldata txId,
+        uint amount,
+        string calldata tokenId
+    ) public {
+        submit(txId, Operation.burn, address(this), amount, tokenId);
+    }
+
     function addContract(
         string calldata txId,
         address contractAddress,
@@ -161,7 +170,7 @@ contract MultiSig is NativeWallet {
         string calldata _txId
     ) external onlyOwner txExists(_txId) notApproved(_txId) notExecuted(_txId) {
         approved[_txId][msg.sender] = true;
-        emit Approve(msg.sender, _txId);
+        emit Approve(msg.sender, _txId, transactions[_txId].op);
     }
 
     function _getApprovalCount(
@@ -194,21 +203,14 @@ contract MultiSig is NativeWallet {
 
         Transaction storage transaction = transactions[_txId];
 
-        if (transaction.op == Operation.addMember) {
-            isOwner[transaction.to] = true;
-            owners.push(transaction.to);
-            required = transaction.amount;
-        }
-
-        if (transaction.op == Operation.removeMember) {
-            delete isOwner[transaction.to];
-            removeOwner(transaction.to);
-            required = transaction.amount;
-        }
-
         if (transaction.op == Operation.mint) {
             Fiat _contract = Fiat(tokens[transaction.token]);
             _contract.mint(transaction.to, transaction.amount);
+        }
+
+        if (transaction.op == Operation.burn) {
+            Fiat _contract = Fiat(tokens[transaction.token]);
+            _contract.burn(transaction.amount);
         }
 
         if (transaction.op == Operation.transferOwnership) {
@@ -224,8 +226,20 @@ contract MultiSig is NativeWallet {
             delete tokens[transaction.token];
         }
 
+        if (transaction.op == Operation.addMember) {
+            isOwner[transaction.to] = true;
+            owners.push(transaction.to);
+            required = transaction.amount;
+        }
+
+        if (transaction.op == Operation.removeMember) {
+            delete isOwner[transaction.to];
+            removeOwner(transaction.to);
+            required = transaction.amount;
+        }
+
         transaction.executed = true;
-        emit Execute(_txId);
+        emit Execute(_txId, transactions[_txId].op);
     }
 
     function revoke(
@@ -233,6 +247,6 @@ contract MultiSig is NativeWallet {
     ) external onlyOwner txExists(_txId) notExecuted(_txId) {
         require(approved[_txId][msg.sender], "tx not approved");
         approved[_txId][msg.sender] = false;
-        emit Revoke(msg.sender, _txId);
+        emit Revoke(msg.sender, _txId, transactions[_txId].op);
     }
 }

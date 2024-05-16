@@ -27,34 +27,34 @@ const receiver_khr = getContract(SIGNER_1, CONTRACT_KHR, FIAT.abi);
 async function main() {
 	const receiver = "0x447ab136f191AF8d47B1D1533a04FCdCfD3f5d6B";
 
-	await (await worker_1.addContract("001", CONTRACT_USD, "USD")).wait();
-	await (await worker_1.addContract("002", CONTRACT_KHR, "KHR")).wait();
-	await (await worker_1.approve("001")).wait();
-	await (await worker_1.approve("002")).wait();
-	await (await worker_2.approve("001")).wait();
-	await (await worker_2.approve("002")).wait();
-	await (await worker_2.execute("001")).wait();
-	await (await worker_2.execute("002")).wait();
+	// await (await worker_1.addContract("001", CONTRACT_USD, "USD")).wait();
+	// await (await worker_1.addContract("002", CONTRACT_KHR, "KHR")).wait();
+	// await (await worker_1.approve("001")).wait();
+	// await (await worker_1.approve("002")).wait();
+	// await (await worker_2.approve("001")).wait();
+	// await (await worker_2.approve("002")).wait();
+	// await (await worker_2.execute("001")).wait();
+	// await (await worker_2.execute("002")).wait();
 
-	console.log("USD before mint:", await receiver_usd.balanceOf(receiver));
+	// console.log("USD before mint:", await receiver_usd.balanceOf(receiver));
 
-	await (
-		await worker_1.mint("003", receiver, "1000000000000000000", "USD")
-	).wait();
-	await (await worker_1.approve("003")).wait();
-	await (await worker_2.approve("003")).wait();
-	await (await worker_1.execute("003")).wait();
+	// await (
+	// 	await worker_1.mint("003", receiver, "1000000000000000000", "USD")
+	// ).wait();
+	// await (await worker_1.approve("003")).wait();
+	// await (await worker_2.approve("003")).wait();
+	// await (await worker_1.execute("003")).wait();
 
 	console.log("USD after mint:", await receiver_usd.balanceOf(receiver));
 
 	console.log("KHR before mint:", await receiver_khr.balanceOf(receiver));
-
+	let id = crypto.randomUUID();
 	await (
-		await worker_1.mint("004", receiver, "1000000000000000000", "KHR")
+		await worker_1.mint(id, receiver, "1000000000000000000", "KHR")
 	).wait();
-	await (await worker_1.approve("004")).wait();
-	await (await worker_2.approve("004")).wait();
-	await (await worker_1.execute("004")).wait();
+	await (await worker_1.approve(id)).wait();
+	await (await worker_2.approve(id)).wait();
+	await (await worker_1.execute(id)).wait();
 
 	console.log("KHR after mint:", await receiver_khr.balanceOf(receiver));
 }
