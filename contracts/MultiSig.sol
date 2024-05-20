@@ -25,6 +25,7 @@ contract MultiSig is NativeWallet {
         uint amount;
         string token;
         bool executed;
+        bool revoked;
     }
 
     string public SuperAdmin = "0";
@@ -35,14 +36,13 @@ contract MultiSig is NativeWallet {
     string public Revoker = "5";
 
     uint public required;
-    address[] public owners;
 
     mapping(address => string) public roles;
     mapping(address => bool) public isOwner;
     mapping(string => address) tokens;
     mapping(address => bool) isTokenExisted;
     mapping(string => Transaction) transactions;
-    mapping(string => mapping(address => bool)) public approved;
+    mapping(string => address[]) public approved;
 
     function compareString(
         string memory a,
@@ -78,12 +78,22 @@ contract MultiSig is NativeWallet {
     }
 
     modifier notApproved(string calldata _txId) {
-        require(!approved[_txId][msg.sender], "tx was approved by owner");
+        for (uint i; i < approved[_txId].length; ++i) {
+            require(
+                msg.sender != approved[_txId][i],
+                "tx was approved by owner"
+            );
+        }
         _;
     }
 
     modifier notExecuted(string calldata _txId) {
         require(!transactions[_txId].executed, "tx was already executed");
+        _;
+    }
+
+    modifier notRevoked(string calldata _txId) {
+        require(!transactions[_txId].revoked, "tx was revoked");
         _;
     }
 
@@ -163,7 +173,6 @@ contract MultiSig is NativeWallet {
             require(!isOwner[owner], "owner is not unique");
 
             isOwner[owner] = true;
-            owners.push(owner);
             roles[owner] = SuperAdmin;
         }
         required = _required;
@@ -181,7 +190,8 @@ contract MultiSig is NativeWallet {
             to: _to,
             amount: amount,
             token: token,
-            executed: false
+            executed: false,
+            revoked: false
         });
 
         emit Submit(txId, _op);
@@ -249,90 +259,74 @@ contract MultiSig is NativeWallet {
         string calldata _txId
     )
         external
+        isApprover
         txExists(_txId)
         notApproved(_txId)
         notExecuted(_txId)
-        isApprover
+        notRevoked(_txId)
     {
-        approved[_txId][msg.sender] = true;
+        approved[_txId].push(msg.sender);
         emit Approve(msg.sender, _txId, transactions[_txId].op);
     }
 
     function _getApprovalCount(
         string calldata _txId
     ) private view returns (uint count) {
-        for (uint i; i < owners.length; i++) {
-            if (approved[_txId][owners[i]]) {
-                count += 1;
-            }
-        }
-    }
-
-    function _removeOwner(address owner) internal {
-        for (uint i; i < owners.length; i++) {
-            if (owners[i] == owner) {
-                owners[i] = owners[owners.length - 1];
-                owners.pop();
-                break;
-            }
-        }
+        return approved[_txId].length;
     }
 
     function execute(
         string calldata _txId
-    ) external txExists(_txId) notExecuted(_txId) isExecuter {
+    ) external isExecuter txExists(_txId) notExecuted(_txId) notRevoked(_txId) {
         require(
             _getApprovalCount(_txId) >= required,
             "approvals is less than required"
         );
 
-        Transaction storage transaction = transactions[_txId];
+        Transaction storage txn = transactions[_txId];
 
-        if (transaction.op == Operation.mint) {
-            Fiat _contract = Fiat(tokens[transaction.token]);
-            _contract.mint(transaction.to, transaction.amount);
+        if (txn.op == Operation.mint) {
+            Fiat _contract = Fiat(tokens[txn.token]);
+            _contract.mint(txn.to, txn.amount);
         }
 
-        if (transaction.op == Operation.burn) {
-            Fiat _contract = Fiat(tokens[transaction.token]);
-            _contract.burn(transaction.amount);
+        if (txn.op == Operation.burn) {
+            Fiat _contract = Fiat(tokens[txn.token]);
+            _contract.burn(txn.amount);
         }
 
-        if (transaction.op == Operation.transferOwnership) {
-            Fiat _contract = Fiat(tokens[transaction.token]);
-            _contract.transferOwnership(transaction.to);
+        if (txn.op == Operation.transferOwnership) {
+            Fiat _contract = Fiat(tokens[txn.token]);
+            _contract.transferOwnership(txn.to);
         }
 
-        if (transaction.op == Operation.addContract) {
-            tokens[transaction.token] = transaction.to;
+        if (txn.op == Operation.addContract) {
+            tokens[txn.token] = txn.to;
         }
 
-        if (transaction.op == Operation.removeContract) {
-            delete tokens[transaction.token];
+        if (txn.op == Operation.removeContract) {
+            delete tokens[txn.token];
         }
 
-        if (transaction.op == Operation.addMember) {
-            isOwner[transaction.to] = true;
-            owners.push(transaction.to);
-            required = transaction.amount;
-            roles[transaction.to] = transaction.token;
+        if (txn.op == Operation.addMember) {
+            isOwner[txn.to] = true;
+            required = txn.amount;
+            roles[txn.to] = txn.token;
         }
 
-        if (transaction.op == Operation.removeMember) {
-            delete isOwner[transaction.to];
-            _removeOwner(transaction.to);
-            required = transaction.amount;
+        if (txn.op == Operation.removeMember) {
+            delete isOwner[txn.to];
+            required = txn.amount;
         }
 
-        transaction.executed = true;
+        txn.executed = true;
         emit Execute(_txId, transactions[_txId].op);
     }
 
     function revoke(
         string calldata _txId
-    ) external onlyOwner txExists(_txId) notExecuted(_txId) {
-        require(approved[_txId][msg.sender], "tx not approved");
-        approved[_txId][msg.sender] = false;
+    ) external isRevoker txExists(_txId) notExecuted(_txId) {
+        transactions[_txId].revoked = true;
         emit Revoke(msg.sender, _txId, transactions[_txId].op);
     }
 }
