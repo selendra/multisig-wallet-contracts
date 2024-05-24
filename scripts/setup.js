@@ -78,24 +78,24 @@ async function main() {
 		...revokers,
 	];
 
-	console.log("SENDING SELS");
-	for (const account of accounts) {
-		const network = new ethers.JsonRpcProvider(
-			"https://rpc0-testnet.selendra.org"
-		);
+	// console.log("SENDING SELS");
+	// for (const account of accounts) {
+	// 	const network = new ethers.JsonRpcProvider(
+	// 		"https://rpc0-testnet.selendra.org"
+	// 	);
 
-		const wallet = new ethers.Wallet(process.env.SIGNER_1, network);
+	// 	const wallet = new ethers.Wallet(process.env.SIGNER_1, network);
 
-		const tx = await wallet.sendTransaction({
-			to: account.publicKey,
-			value: ethers.parseEther("10"),
-		});
+	// 	const tx = await wallet.sendTransaction({
+	// 		to: account.publicKey,
+	// 		value: ethers.parseEther("10"),
+	// 	});
 
-		const res = await tx.wait();
-		console.log("AMOUNT: 10 SEL");
-		console.log("ACCOUNT: ", res.to);
-		console.log("");
-	}
+	// 	const res = await tx.wait();
+	// 	console.log("AMOUNT: 10 SEL");
+	// 	console.log("ACCOUNT: ", res.to);
+	// 	console.log("");
+	// }
 
 	const owner1 = getContract(owners[0].privateKey);
 	const owner2 = getContract(owners[1].privateKey);
@@ -112,6 +112,23 @@ async function main() {
 		gasLimit: 300000,
 	};
 
+	const USD_ID = crypto.randomUUID();
+	const KHR_ID = crypto.randomUUID();
+
+	await (await owner1.addContract(USD_ID, config.USD, "USD", gasConfig)).wait();
+	await (await owner1.addContract(KHR_ID, config.KHR, "KHR", gasConfig)).wait();
+
+	await (await owner1.approve(USD_ID, gasConfig)).wait();
+	await (await owner2.approve(USD_ID, gasConfig)).wait();
+	await (await owner3.approve(USD_ID, gasConfig)).wait();
+
+	await (await owner1.approve(KHR_ID, gasConfig)).wait();
+	await (await owner2.approve(KHR_ID, gasConfig)).wait();
+	await (await owner3.approve(KHR_ID, gasConfig)).wait();
+
+	await (await owner3.execute(USD_ID, gasConfig)).wait();
+	await (await owner3.execute(KHR_ID, gasConfig)).wait();
+
 	console.log("SETTING UP ACCOUNTS");
 	for (const account of submitters) {
 		await addMember(0, owner1, owner2, owner3, account, Submitter, gasConfig);
@@ -125,13 +142,13 @@ async function main() {
 		await addMember(0, owner1, owner2, owner3, account, Executer, gasConfig);
 	}
 
-	for (const account of burners) {
-		await addMember(0, owner1, owner2, owner3, account, Burner, gasConfig);
-	}
+	// for (const account of burners) {
+	// 	await addMember(0, owner1, owner2, owner3, account, Burner, gasConfig);
+	// }
 
-	for (const account of revokers) {
-		await addMember(0, owner1, owner2, owner3, account, Revoker, gasConfig);
-	}
+	// for (const account of revokers) {
+	// 	await addMember(0, owner1, owner2, owner3, account, Revoker, gasConfig);
+	// }
 }
 
 // We recommend this pattern to be able to use async/await everywhere

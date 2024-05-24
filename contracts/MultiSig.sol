@@ -329,4 +329,24 @@ contract MultiSig is NativeWallet {
         transactions[_txId].revoked = true;
         emit Revoke(msg.sender, _txId, transactions[_txId].op);
     }
+
+    function isTxSubmitted(string calldata txId) public view returns (bool) {
+        return transactions[txId].to != address(0);
+    }
+
+    function isTxApproved(string calldata txId) public view returns (bool) {
+        bool _apr = false;
+
+        for (uint i; i < approved[txId].length; ++i) {
+            if (approved[txId][i] == msg.sender) {
+                _apr = true;
+            }
+        }
+
+        return _apr;
+    }
+
+    function isTxExecuted(string calldata txId) public view returns (bool) {
+        return transactions[txId].executed;
+    }
 }
