@@ -22,3 +22,5 @@ This document outlines the usage flow for the smart contracts within the Transac
 4.  From a `SuperAdmin` account, call the `addContract` function on the `MultiSig` contract.
 5.  Provide the address of the deployed ERC20 contract and the token symbol as arguments.
 6.  Similar to adding members, this action requires approval from multiple `SuperAdmin` accounts. Follow steps 3 and 4 from the "Adding Members and Roles" section.
+
+Forked from @Bary-io
